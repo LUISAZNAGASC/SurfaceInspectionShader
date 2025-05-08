@@ -1,66 +1,162 @@
-// LAST UPDATED DATE : 02/05/2025
+// LAST UPDATED DATE : 08/05/2025
 
 // SHADERTOY IMAGE
 
-const float NumericConstant_Epsilon = 0000000000.00010000000000000000f;
+const float NumericConstant_Zero = 0000000000.00000000000000000000f;
+const float NumericConstant_One = 0000000001.00000000000000000000f;
 
-void SetPassThroughImageProcessing(out vec4 fragmentOutputColor, in vec2 fragmentTextureCoordinates)
+#define PASS_THROUGH_IMAGE_PROCESSING 0u
+#define GAUSSIAN_BLUR_IMAGE_PROCESSING 1u
+#define EDGE_DETECTION_IMAGE_PROCESSING 2u
+
+#define WINDOW_LEFT_SIDE_IMAGE_PROCESSING PASS_THROUGH_IMAGE_PROCESSING
+#define WINDOW_RIGHT_SIDE_IMAGE_PROCESSING GAUSSIAN_BLUR_IMAGE_PROCESSING
+
+float getFloatDataClampedFromZeroToOneThis(const in float floatDataUnclampedFromZeroToOneThis)
 {
-    fragmentOutputColor.rgba = texture(iChannel0, fragmentTextureCoordinates.xy).rgba;
+    float floatDataClampedFromZeroToOneThis = clamp(floatDataUnclampedFromZeroToOneThis, NumericConstant_Zero, NumericConstant_One);
+    
+    return floatDataClampedFromZeroToOneThis;
 }
 
-void SetEdgeDetectionImageProcessing(out vec4 fragmentOutputColor, in vec2 fragmentTextureCoordinates)
+vec4 getColorDataDefinedThis(const in float colorDataUndefinedTintAmount)
 {
-    vec2 fragmentTexturePixelSize = vec2(1.0f / iChannelResolution[0u].x, 1.0f / iChannelResolution[0u].y);
+    vec4 colorDataDefinedThis = vec4(colorDataUndefinedTintAmount, colorDataUndefinedTintAmount, colorDataUndefinedTintAmount, NumericConstant_One).rgba;
+    colorDataDefinedThis.rgba = clamp(colorDataDefinedThis.rgba, NumericConstant_Zero, NumericConstant_One).rgba;
+    
+    return colorDataDefinedThis.rgba;
+}
+
+vec4 getColorDataDefinedThis(const in vec3 colorDataUndefinedThis)
+{
+    vec4 colorDataDefinedThis = vec4(colorDataUndefinedThis.r, colorDataUndefinedThis.g, colorDataUndefinedThis.b, NumericConstant_One).rgba;
+    colorDataDefinedThis.rgba = clamp(colorDataDefinedThis.rgba, NumericConstant_Zero, NumericConstant_One).rgba;
+    
+    return colorDataDefinedThis.rgba;
+}
+
+vec4 getColorDataDefinedThis(const in vec4 colorDataUndefinedThis)
+{
+    vec4 colorDataDefinedThis = vec4(colorDataUndefinedThis.r, colorDataUndefinedThis.g, colorDataUndefinedThis.b, NumericConstant_One).rgba;
+    colorDataDefinedThis.rgba = clamp(colorDataDefinedThis.rgba, NumericConstant_Zero, NumericConstant_One).rgba;
+    
+    return colorDataDefinedThis.rgba;
+}
+
+void SetInvalidOperationImageProcessing(inout vec4 fragmentOutputColor)
+{
+    fragmentOutputColor.rgba = getColorDataDefinedThis(NumericConstant_Zero).rgba;
+}
+
+void SetPassThroughImageProcessing(inout vec4 fragmentOutputColor, in vec2 fragmentTextureCoordinates)
+{
+    fragmentOutputColor.rgba = getColorDataDefinedThis(texture(iChannel0, fragmentTextureCoordinates.xy).rgba).rgba;
+}
+
+void SetGaussianBlurImageProcessing(inout vec4 fragmentOutputColor, in vec2 fragmentTextureCoordinates)
+{
+    const float fragmentTextureDownscaleFactor = 32.0f;
+    vec2 fragmentTexturePixelSize = fragmentTextureDownscaleFactor * vec2(1.0f / iChannelResolution[0u].x, 1.0f / iChannelResolution[0u].y).xy;
+
+    vec4 gaussianBlurColor;
+    gaussianBlurColor.rgba += 0.0039062f * texture(iChannel0, vec2(-2.0f, -2.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0156250f * texture(iChannel0, vec2(-1.0f, -2.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0234375f * texture(iChannel0, vec2(+0.0f, -2.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0156250f * texture(iChannel0, vec2(+1.0f, -2.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0039062f * texture(iChannel0, vec2(+2.0f, -2.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0156250f * texture(iChannel0, vec2(-2.0f, -1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0625000f * texture(iChannel0, vec2(-1.0f, -1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0937500f * texture(iChannel0, vec2(+0.0f, -1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0625000f * texture(iChannel0, vec2(+1.0f, -1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0156250f * texture(iChannel0, vec2(+2.0f, -1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0234375f * texture(iChannel0, vec2(-2.0f, +0.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0937500f * texture(iChannel0, vec2(-1.0f, +0.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.1406250f * texture(iChannel0, vec2(+0.0f, +0.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0937500f * texture(iChannel0, vec2(+1.0f, +0.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0234375f * texture(iChannel0, vec2(+2.0f, +0.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0156250f * texture(iChannel0, vec2(-2.0f, +1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0625000f * texture(iChannel0, vec2(-1.0f, +1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0937500f * texture(iChannel0, vec2(+0.0f, +1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0625000f * texture(iChannel0, vec2(+1.0f, +1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0156250f * texture(iChannel0, vec2(+2.0f, +1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0039062f * texture(iChannel0, vec2(-2.0f, +2.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0156250f * texture(iChannel0, vec2(-1.0f, +2.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0234375f * texture(iChannel0, vec2(+0.0f, +2.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0156250f * texture(iChannel0, vec2(+1.0f, +2.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    gaussianBlurColor.rgba += 0.0039062f * texture(iChannel0, vec2(+2.0f, +2.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+
+    fragmentOutputColor.rgba = getColorDataDefinedThis(gaussianBlurColor.rgba).rgba;
+}
+
+void SetEdgeDetectionImageProcessing(inout vec4 fragmentOutputColor, in vec2 fragmentTextureCoordinates)
+{
+    vec2 fragmentTexturePixelSize = vec2(1.0f / iChannelResolution[0u].x, 1.0f / iChannelResolution[0u].y).xy;
     
     vec4 edgeDetectionXGradient;
-    edgeDetectionXGradient.rgba += -1.0f * texture(iChannel0, vec2(-1.0f, -1.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionXGradient.rgba += +0.0f * texture(iChannel0, vec2(+0.0f, -1.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionXGradient.rgba += +1.0f * texture(iChannel0, vec2(+1.0f, -1.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionXGradient.rgba += -2.0f * texture(iChannel0, vec2(-1.0f, +0.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionXGradient.rgba += +0.0f * texture(iChannel0, vec2(+0.0f, +0.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionXGradient.rgba += +2.0f * texture(iChannel0, vec2(+1.0f, +0.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionXGradient.rgba += -1.0f * texture(iChannel0, vec2(-1.0f, +1.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionXGradient.rgba += +0.0f * texture(iChannel0, vec2(+0.0f, +1.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionXGradient.rgba += +1.0f * texture(iChannel0, vec2(+1.0f, +1.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionXGradient.rgba += -1.0f * texture(iChannel0, vec2(-1.0f, -1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionXGradient.rgba += +0.0f * texture(iChannel0, vec2(+0.0f, -1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionXGradient.rgba += +1.0f * texture(iChannel0, vec2(+1.0f, -1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionXGradient.rgba += -2.0f * texture(iChannel0, vec2(-1.0f, +0.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionXGradient.rgba += +0.0f * texture(iChannel0, vec2(+0.0f, +0.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionXGradient.rgba += +2.0f * texture(iChannel0, vec2(+1.0f, +0.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionXGradient.rgba += -1.0f * texture(iChannel0, vec2(-1.0f, +1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionXGradient.rgba += +0.0f * texture(iChannel0, vec2(+0.0f, +1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionXGradient.rgba += +1.0f * texture(iChannel0, vec2(+1.0f, +1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
     
     float edgeDetectionXIntensity = length(edgeDetectionXGradient.rgba);
     
     vec4 edgeDetectionYGradient;
-    edgeDetectionYGradient.rgba += +1.0f * texture(iChannel0, vec2(-1.0f, -1.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionYGradient.rgba += +2.0f * texture(iChannel0, vec2(+0.0f, -1.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionYGradient.rgba += +1.0f * texture(iChannel0, vec2(+1.0f, -1.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionYGradient.rgba += +0.0f * texture(iChannel0, vec2(-1.0f, +0.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionYGradient.rgba += +0.0f * texture(iChannel0, vec2(+0.0f, +0.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionYGradient.rgba += +0.0f * texture(iChannel0, vec2(+1.0f, +0.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionYGradient.rgba += -1.0f * texture(iChannel0, vec2(-1.0f, +1.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionYGradient.rgba += -2.0f * texture(iChannel0, vec2(+0.0f, +1.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
-    edgeDetectionYGradient.rgba += -1.0f * texture(iChannel0, vec2(+1.0f, +1.0f).xy * fragmentTexturePixelSize + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionYGradient.rgba += +1.0f * texture(iChannel0, vec2(-1.0f, -1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionYGradient.rgba += +2.0f * texture(iChannel0, vec2(+0.0f, -1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionYGradient.rgba += +1.0f * texture(iChannel0, vec2(+1.0f, -1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionYGradient.rgba += +0.0f * texture(iChannel0, vec2(-1.0f, +0.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionYGradient.rgba += +0.0f * texture(iChannel0, vec2(+0.0f, +0.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionYGradient.rgba += +0.0f * texture(iChannel0, vec2(+1.0f, +0.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionYGradient.rgba += -1.0f * texture(iChannel0, vec2(-1.0f, +1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionYGradient.rgba += -2.0f * texture(iChannel0, vec2(+0.0f, +1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
+    edgeDetectionYGradient.rgba += -1.0f * texture(iChannel0, vec2(+1.0f, +1.0f).xy * fragmentTexturePixelSize.xy + fragmentTextureCoordinates.xy).rgba;
     
     float edgeDetectionYIntensity = length(edgeDetectionYGradient.rgba);
     
     float edgeDetectionFullIntensity = sqrt(edgeDetectionXIntensity * edgeDetectionXIntensity + edgeDetectionYIntensity * edgeDetectionYIntensity);
     
-    fragmentOutputColor.rgba = vec4(edgeDetectionFullIntensity, edgeDetectionFullIntensity, edgeDetectionFullIntensity, edgeDetectionFullIntensity).rgba;
+    fragmentOutputColor.rgba = getColorDataDefinedThis(edgeDetectionFullIntensity).rgba;
 }
 
 void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
 {
     vec2 fragmentTextureCoordinates = fragmentInputCoordinates.xy / iChannelResolution[0u].xy;
     
-    float mouseSliderHorizontal = iMouse.z >= NumericConstant_Epsilon ? iMouse.x / iChannelResolution[0u].x : 0.5f;
+    float mouseSliderHorizontal = iMouse.z >= NumericConstant_One ? iMouse.x / iChannelResolution[0u].x : NumericConstant_One / 2.0f;
+    mouseSliderHorizontal = getFloatDataClampedFromZeroToOneThis(mouseSliderHorizontal);
     
     if (fragmentTextureCoordinates.x <= mouseSliderHorizontal)
     {
+        #if WINDOW_LEFT_SIDE_IMAGE_PROCESSING == PASS_THROUGH_IMAGE_PROCESSING
         SetPassThroughImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
+        #elif WINDOW_LEFT_SIDE_IMAGE_PROCESSING == GAUSSIAN_BLUR_IMAGE_PROCESSING
+        SetGaussianBlurImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
+        #elif WINDOW_LEFT_SIDE_IMAGE_PROCESSING == EDGE_DETECTION_IMAGE_PROCESSING
+        SetEdgeDetectionImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
+        #else
+        SetInvalidOperationImageProcessing(fragmentOutputColor.rgba);
+        #endif
     }
     else if (fragmentTextureCoordinates.x >= mouseSliderHorizontal)
     {
+        #if WINDOW_RIGHT_SIDE_IMAGE_PROCESSING == PASS_THROUGH_IMAGE_PROCESSING
+        SetPassThroughImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
+        #elif WINDOW_RIGHT_SIDE_IMAGE_PROCESSING == GAUSSIAN_BLUR_IMAGE_PROCESSING
+        SetGaussianBlurImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
+        #elif WINDOW_RIGHT_SIDE_IMAGE_PROCESSING == EDGE_DETECTION_IMAGE_PROCESSING
         SetEdgeDetectionImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
+        #else
+        SetInvalidOperationImageProcessing(fragmentOutputColor.rgba);
+        #endif
     }
     else
     {
-        
+        SetInvalidOperationImageProcessing(fragmentOutputColor.rgba);
     }
 }
 
@@ -337,7 +433,7 @@ surfaceData getSceneSurfaceData(const in vec4 sceneRaypointDataPosition)
             
             mat4 dualSphereTransformDataFullTransformation = getTransformDataIdentityTransformation();
             dualSphereTransformDataFullTransformation *= getTransformDataLocalTranslation(Scene_PointOfViewPosition.xyz + dualSphereTransformDataPosition.xyz);
-            dualSphereTransformDataFullTransformation *= getTransformDataLocalOrientation(vec3(0.0f, 60.0f * iTime, 0.0f).xyz);
+            dualSphereTransformDataFullTransformation *= getTransformDataLocalOrientation(vec3(0.0f, 45.0f * iTime, 0.0f).xyz);
             dualSphereTransformDataFullTransformation = inverse(dualSphereTransformDataFullTransformation);
             
             dualSphereRaypointDataFullPosition.xyzw = getRaypointDataDefinedPosition(sceneRaypointDataFullPosition.xyzw).xyzw;
@@ -345,7 +441,7 @@ surfaceData getSceneSurfaceData(const in vec4 sceneRaypointDataPosition)
         }
         
         materialData dualSphereMaterialData;
-        dualSphereMaterialData.materialDataGeneralColor.rgba = getColorDataDefinedThis(vec3(1.0f, 0.0f, 0.0f).rgb).rgba;
+        dualSphereMaterialData.materialDataGeneralColor.rgba = getColorDataDefinedThis(vec3(1.0f, 0.0f, 1.0f).rgb).rgba;
         dualSphereMaterialData.materialDataAmbientAmount = 0.1f;
         dualSphereMaterialData.materialDataDiffuseAmount = 0.6f;
         dualSphereMaterialData.materialDataSpecularAmount = 1.0f;
