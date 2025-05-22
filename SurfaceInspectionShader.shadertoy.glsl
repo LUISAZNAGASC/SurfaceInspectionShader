@@ -1,4 +1,4 @@
-// LAST UPDATED DATE : 15/05/2025
+// LAST UPDATED DATE : 22/05/2025
 
 // SHADERTOY IMAGE
 
@@ -7,7 +7,7 @@
 #define EDGE_DETECTION_IMAGE_PROCESSING 2u
 
 #define WINDOW_LEFT_SIDE_IMAGE_PROCESSING PASS_THROUGH_IMAGE_PROCESSING
-#define WINDOW_RIGHT_SIDE_IMAGE_PROCESSING PASS_THROUGH_IMAGE_PROCESSING
+#define WINDOW_RIGHT_SIDE_IMAGE_PROCESSING EDGE_DETECTION_IMAGE_PROCESSING
 
 #define NumericConstant_Zero 0000000000.00000000000000000000f
 #define NumericConstant_One 0000000001.00000000000000000000f
@@ -43,17 +43,17 @@ vec4 getColorDataDefinedThis(const in vec4 colorDataUndefinedThis)
 	return colorDataDefinedThis.rgba;
 }
 
-void SetInvalidOperationImageProcessing(inout vec4 fragmentOutputColor)
+void setInvalidOperationImageProcessing(inout vec4 fragmentOutputColor)
 {
 	fragmentOutputColor.rgba = getColorDataDefinedThis(NumericConstant_Zero).rgba;
 }
 
-void SetPassThroughImageProcessing(inout vec4 fragmentOutputColor, in vec2 fragmentTextureCoordinates)
+void setPassThroughImageProcessing(inout vec4 fragmentOutputColor, in vec2 fragmentTextureCoordinates)
 {
 	fragmentOutputColor.rgba = getColorDataDefinedThis(texture(iChannel0, fragmentTextureCoordinates.xy).rgba).rgba;
 }
 
-void SetGaussianBlurImageProcessing(inout vec4 fragmentOutputColor, in vec2 fragmentTextureCoordinates)
+void setGaussianBlurImageProcessing(inout vec4 fragmentOutputColor, in vec2 fragmentTextureCoordinates)
 {
 	const float fragmentTextureDownscaleFactor = 32.0f;
 	vec2 fragmentTexturePixelSize = fragmentTextureDownscaleFactor * vec2(1.0f / iChannelResolution[0u].x, 1.0f / iChannelResolution[0u].y).xy;
@@ -88,7 +88,7 @@ void SetGaussianBlurImageProcessing(inout vec4 fragmentOutputColor, in vec2 frag
 	fragmentOutputColor.rgba = getColorDataDefinedThis(gaussianBlurColor.rgba).rgba;
 }
 
-void SetEdgeDetectionImageProcessing(inout vec4 fragmentOutputColor, in vec2 fragmentTextureCoordinates)
+void setEdgeDetectionImageProcessing(inout vec4 fragmentOutputColor, in vec2 fragmentTextureCoordinates)
 {
 	vec2 fragmentTexturePixelSize = vec2(1.0f / iChannelResolution[0u].x, 1.0f / iChannelResolution[0u].y).xy;
 
@@ -133,30 +133,30 @@ void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
 	if (fragmentTextureCoordinates.x <= mouseSliderHorizontal)
 	{
 		#if WINDOW_LEFT_SIDE_IMAGE_PROCESSING == PASS_THROUGH_IMAGE_PROCESSING
-		SetPassThroughImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
+		setPassThroughImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
 		#elif WINDOW_LEFT_SIDE_IMAGE_PROCESSING == GAUSSIAN_BLUR_IMAGE_PROCESSING
-		SetGaussianBlurImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
+		setGaussianBlurImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
 		#elif WINDOW_LEFT_SIDE_IMAGE_PROCESSING == EDGE_DETECTION_IMAGE_PROCESSING
-		SetEdgeDetectionImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
+		setEdgeDetectionImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
 		#else
-		SetInvalidOperationImageProcessing(fragmentOutputColor.rgba);
+		setInvalidOperationImageProcessing(fragmentOutputColor.rgba);
 		#endif
 	}
 	else if (fragmentTextureCoordinates.x >= mouseSliderHorizontal)
 	{
 		#if WINDOW_RIGHT_SIDE_IMAGE_PROCESSING == PASS_THROUGH_IMAGE_PROCESSING
-		SetPassThroughImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
+		setPassThroughImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
 		#elif WINDOW_RIGHT_SIDE_IMAGE_PROCESSING == GAUSSIAN_BLUR_IMAGE_PROCESSING
-		SetGaussianBlurImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
+		setGaussianBlurImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
 		#elif WINDOW_RIGHT_SIDE_IMAGE_PROCESSING == EDGE_DETECTION_IMAGE_PROCESSING
-		SetEdgeDetectionImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
+		setEdgeDetectionImageProcessing(fragmentOutputColor.rgba, fragmentTextureCoordinates.xy);
 		#else
-		SetInvalidOperationImageProcessing(fragmentOutputColor.rgba);
+		setInvalidOperationImageProcessing(fragmentOutputColor.rgba);
 		#endif
 	}
 	else
 	{
-		SetInvalidOperationImageProcessing(fragmentOutputColor.rgba);
+		setInvalidOperationImageProcessing(fragmentOutputColor.rgba);
 	}
 }
 
