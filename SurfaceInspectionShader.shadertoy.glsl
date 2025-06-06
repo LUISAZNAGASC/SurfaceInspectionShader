@@ -1,4 +1,4 @@
-// LAST UPDATED DATE : 05/06/2025
+// LAST UPDATED DATE : 06/06/2025
 
 // SHADERTOY IMAGE
 
@@ -216,29 +216,63 @@ void setFragmentForegroundColor(inout vec3 fragmentOutputColor, const in vec3 ca
     raymarchSurfaceMaterialColor.rgb = raymarchSurfaceMaterialColor.rgb + vec3(raymarchSurfaceMaterialSpecular).rgb;
     raymarchSurfaceMaterialColor.rgb = raymarchSurfaceMaterialColor.rgb * raymarchSurface.surfaceMaterial.materialColor.rgb;
     
-    fragmentOutputColor.rgb = pow(raymarchSurfaceMaterialColor.rgb, vec3(1.0f / 2.2f).rgb).rgb;
+    const float FragmentGammaCorrectionAmount = 1.0f / 2.2f;
+    
+    fragmentOutputColor.rgb = pow(raymarchSurfaceMaterialColor.rgb, vec3(FragmentGammaCorrectionAmount).rgb).rgb;
 }
 
-void setFragmentBackgroundColor(inout vec3 fragmentOutputColor, const in vec2 fragmentPixelCoordinates)
-{
-    fragmentOutputColor.rgb = vec3(0.25f, 0.25f, 0.25f).rgb;
-}
-
-void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
+void setFragmentBackgroundColor(inout vec3 fragmentOutputColor, const in vec2 fragmentInputCoordinates)
 {
     vec2 fragmentPixelCoordinates = (2.0f * fragmentInputCoordinates.xy - iResolution.xy).xy / min(iResolution.x, iResolution.y);
     
+    const float FragmentGridDimension = 0.25f;
+    const float FragmentBorderDimension = 0.05;
+    
+    const vec3 FragmentFirstGridColor = vec3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f).rgb;
+    const vec3 FragmentSecondGridColor = vec3(2.0f / 3.0f, 2.0f / 3.0f, 2.0f / 3.0f).rgb;
+    const vec3 FragmentBorderColor = vec3(0.0f, 0.0f, 0.0f).rgb;
+    
+    vec2 fragmentGridCoordinates = mod(floor(fragmentPixelCoordinates.xy / FragmentGridDimension).xy, 2.0f).xy;
+    float fragmentGridChecker = mod(fragmentGridCoordinates.x + fragmentGridCoordinates.y, 2.0f);
+    
+    if (fragmentGridChecker <= 0.0f)
+    {
+        fragmentOutputColor.rgb = FragmentFirstGridColor.rgb;
+    }
+    else if (fragmentGridChecker >= 1.0f)
+    {
+        fragmentOutputColor.rgb = FragmentSecondGridColor.rgb;
+    }
+    else
+    {
+        fragmentOutputColor.rgb = FragmentBorderColor.rgb;
+    }
+    
+    vec2 fragmentBorderCoordinates = mod(fragmentPixelCoordinates.xy / FragmentGridDimension, 2.0f).xy;
+    float fragmentBorderChecker = step(fragmentBorderCoordinates.x, FragmentBorderDimension) + step(fragmentBorderCoordinates.y, FragmentBorderDimension);
+    
+    if (fragmentBorderChecker > FragmentBorderDimension)
+    {
+        fragmentOutputColor.rgb = FragmentBorderColor.rgb;
+    }
+}
+
+
+void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
+{
     vec3 cameraRaypointPosition = vec3(25.0f, 25.0f, 25.0f).xyz;
     vec3 cameraRaypointDirection;
     {
         mat3 cameraTransformOrientation = getTransformLookAtOrientation(cameraRaypointPosition.xyz, CameraLookAtPoint.xyz);
+        
+        vec2 cameraViewportCoordinates = (2.0f * fragmentInputCoordinates.xy - iResolution.xy).xy / min(iResolution.x, iResolution.y);
         
         const float CameraMinimumFieldOfView = 10.0f;
         const float CameraMaximumFieldOfView = 180.0f;
         float CameraFieldOfView = 30.0f;
         float cameraFocalLength = 1.0f / tan(0.5f * radians(clamp(CameraFieldOfView, CameraMinimumFieldOfView, CameraMaximumFieldOfView)));
         
-        cameraRaypointDirection.xyz = cameraTransformOrientation * normalize(vec3(fragmentPixelCoordinates.xy, -cameraFocalLength).xyz).xyz;
+        cameraRaypointDirection.xyz = cameraTransformOrientation * normalize(vec3(cameraViewportCoordinates.xy, -cameraFocalLength).xyz).xyz;
     }
     
     surface raymarchSurface = getRaymarchSurface(cameraRaypointPosition.xyz, cameraRaypointDirection.xyz);
@@ -249,6 +283,6 @@ void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
     }
     else
     {
-        setFragmentBackgroundColor(fragmentOutputColor.rgb, fragmentPixelCoordinates.xy);
+        setFragmentBackgroundColor(fragmentOutputColor.rgb, fragmentInputCoordinates.xy);
     }
 }
