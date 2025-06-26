@@ -1,4 +1,4 @@
-// LAST UPDATED DATE : 12/06/2025
+// LAST UPDATED DATE : 26/06/2025
 
 // SHADERTOY IMAGE
 
@@ -204,7 +204,14 @@ surface getSphereSurface(const in vec3 sceneRaypointPosition, const in vec3 sphe
     return sphereSurface;
 }
 
-surface getPrototypeSurface(const in vec3 sceneRaypointPosition, const in vec3 prototypeTransformPosition, const in vec3 prototypeTransformRotation, const in float prototypeTransformScale)
+material getPrototypeMaterial(const in vec3 prototypeMaterialColor)
+{
+    material prototypeMaterial = material(prototypeMaterialColor.rgb, 0.075f, 0.75f, 1.0f, 0.45f);
+    
+    return prototypeMaterial;
+}
+
+surface getPrototypeSurface(const in vec3 sceneRaypointPosition, const in vec3 prototypeTransformPosition, const in vec3 prototypeTransformRotation, const in float prototypeTransformScale, const in material prototypeSurfaceMaterial)
 {
     vec3 prototypeRaypointPosition;
     {
@@ -219,7 +226,7 @@ surface getPrototypeSurface(const in vec3 sceneRaypointPosition, const in vec3 p
         vec3 upperCenterTransformRotation = vec3(0.0f, 0.0f, 0.0f).xyz;
         float upperCenterTransformRadius = 2.0f / 3.0f * prototypeTransformScale;
         
-        material upperCenterSurfaceMaterial = material(vec3(1.0f, 0.0f, 0.0f).rgb, 0.075f, 0.75f, 1.0f, 0.45f);
+        material upperCenterSurfaceMaterial = prototypeSurfaceMaterial;
         
         upperCenterSurface = getSphereSurface(prototypeRaypointPosition.xyz, upperCenterTransformPosition.xyz, upperCenterTransformRotation.xyz, upperCenterTransformRadius, upperCenterSurfaceMaterial);
     }
@@ -230,7 +237,7 @@ surface getPrototypeSurface(const in vec3 sceneRaypointPosition, const in vec3 p
         vec3 lowerLeftTransformRotation = vec3(0.0f, 0.0f, 0.0f).xyz;
         float lowerLeftTransformRadius = 2.0f / 3.0f * prototypeTransformScale;
         
-        material lowerLeftSurfaceMaterial = material(vec3(0.0f, 1.0f, 0.0f).rgb, 0.075f, 0.75f, 1.0f, 0.45f);
+        material lowerLeftSurfaceMaterial = prototypeSurfaceMaterial;
         
         lowerLeftSurface = getSphereSurface(prototypeRaypointPosition.xyz, lowerLeftTransformPosition.xyz, lowerLeftTransformRotation.xyz, lowerLeftTransformRadius, lowerLeftSurfaceMaterial);
     }
@@ -241,7 +248,7 @@ surface getPrototypeSurface(const in vec3 sceneRaypointPosition, const in vec3 p
         vec3 lowerRightTransformRotation = vec3(0.0f, 0.0f, 0.0f).xyz;
         float lowerRightTransformRadius = 2.0f / 3.0f * prototypeTransformScale;
         
-        material lowerRightSurfaceMaterial = material(vec3(0.0f, 0.0f, 1.0f).rgb, 0.075f, 0.75f, 1.0f, 0.45f);
+        material lowerRightSurfaceMaterial = prototypeSurfaceMaterial;
         
         lowerRightSurface = getSphereSurface(prototypeRaypointPosition.xyz, lowerRightTransformPosition.xyz, lowerRightTransformRotation.xyz, lowerRightTransformRadius, lowerRightSurfaceMaterial);
     }
@@ -261,7 +268,9 @@ surface getSceneSurface(const in vec3 sampleRaypointPosition)
         vec3 prototypeTransformRotation = vec3(90.0f * iTime, 45.0f * iTime, 90.0f * iTime).xyz;
         float prototypeTransformScale = 10.0f;
         
-        prototypeSurface = getPrototypeSurface(sampleRaypointPosition.xyz, prototypeTransformPosition.xyz, prototypeTransformRotation.xyz, prototypeTransformScale);
+        material prototypeSurfaceMaterial = getPrototypeMaterial(vec3(0.0f, 1.0f, 1.0f).rgb);
+        
+        prototypeSurface = getPrototypeSurface(sampleRaypointPosition.xyz, prototypeTransformPosition.xyz, prototypeTransformRotation.xyz, prototypeTransformScale, prototypeSurfaceMaterial);
     }
     
     surface sceneSurface;
