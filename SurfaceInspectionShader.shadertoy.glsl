@@ -1,4 +1,4 @@
-// LAST UPDATED DATE : 26/06/2025
+// LAST UPDATED DATE : 27/06/2025
 
 // SHADERTOY IMAGE
 
@@ -9,8 +9,17 @@
 #define ImageProcessing_WindowLeftSide ImageProcessing_Passthrough
 #define ImageProcessing_WindowRightSide ImageProcessing_EdgeDetection
 
-void setGaussianBlurImageProcessing(inout vec4 fragmentOutputColor, const in vec2 fragmentPixelCoordinates)
+void setPassthroughImageProcessing(inout vec4 fragmentOutputColor, const in vec2 fragmentInputCoordinates)
 {
+    vec2 fragmentPixelCoordinates = fragmentInputCoordinates.xy / iChannelResolution[0u].xy;
+    
+    fragmentOutputColor.rgba = texture(iChannel0, fragmentPixelCoordinates.xy).rgba;
+}
+
+void setGaussianBlurImageProcessing(inout vec4 fragmentOutputColor, const in vec2 fragmentInputCoordinates)
+{
+    vec2 fragmentPixelCoordinates = fragmentInputCoordinates.xy / iChannelResolution[0u].xy;
+    
     const float GaussianBlurDownscale = 32.0f;
     
     vec2 fragmentTextureDimension = GaussianBlurDownscale / iChannelResolution[0u].xy;
@@ -45,8 +54,10 @@ void setGaussianBlurImageProcessing(inout vec4 fragmentOutputColor, const in vec
     fragmentOutputColor.rgba = gaussianBlurAccumulatedColor.rgba;
 }
 
-void setEdgeDetectionImageProcessing(inout vec4 fragmentOutputColor, const in vec2 fragmentPixelCoordinates)
+void setEdgeDetectionImageProcessing(inout vec4 fragmentOutputColor, const in vec2 fragmentInputCoordinates)
 {
+    vec2 fragmentPixelCoordinates = fragmentInputCoordinates.xy / iChannelResolution[0u].xy;
+    
     const float EdgeDetectionDownscale = 1.0f;
     
     vec2 fragmentTextureDimension = EdgeDetectionDownscale / iChannelResolution[0u].xy;
@@ -82,32 +93,47 @@ void setEdgeDetectionImageProcessing(inout vec4 fragmentOutputColor, const in ve
     fragmentOutputColor.rgba = vec4(edgeDetectionAllInOneIntensity).rgba;
 }
 
+void setVignetteImageProcessing(inout vec4 fragmentOutputColor, const in vec2 fragmentInputCoordinates, const in vec2 vignetteScale, const in float vignetteRoundness, const in float vignetteSmoothness)
+{
+    vec2 fragmentPixelCoordinates = (2.0f * fragmentInputCoordinates.xy - iChannelResolution[0u].xy).xy / iChannelResolution[0u].xy;
+    
+    float vignetteIntensity = min(vignetteScale.x, vignetteScale.y);
+    
+    vec2 vignettePosition;
+    vignettePosition.x = sign(fragmentPixelCoordinates.x) * clamp(abs(fragmentPixelCoordinates.x) - abs(vignetteIntensity - vignetteScale.x), 0.0f, 1.0f);
+    vignettePosition.y = sign(fragmentPixelCoordinates.y) * clamp(abs(fragmentPixelCoordinates.y) - abs(vignetteIntensity - vignetteScale.y), 0.0f, 1.0f);
+    vignettePosition.xy = abs(vignettePosition.xy).xy - vignetteIntensity * (1.0f - vignetteRoundness);
+    
+    float vignetteDistance = min(max(vignettePosition.x, vignettePosition.y), 0.0f) + length(max(vignettePosition.xy, vec2(0.0f, 0.0f).xy));
+    vignetteDistance = 1.0f - smoothstep(0.0f, vignetteSmoothness, vignetteDistance - vignetteIntensity * vignetteRoundness);
+    
+    fragmentOutputColor.rgba = fragmentOutputColor.rgba * vignetteDistance;
+}
+
 void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
 {
-    vec2 fragmentPixelCoordinates = fragmentInputCoordinates.xy / iChannelResolution[0u].xy;
-    
     float mouseInputHorizontalSlider = clamp(iMouse.z >= 1.0f ? iMouse.x / iChannelResolution[0u].x : 0.5f, 0.0f, 1.0f);
     
-    if (fragmentPixelCoordinates.x <= mouseInputHorizontalSlider)
+    if (fragmentInputCoordinates.x / iChannelResolution[0u].x <= mouseInputHorizontalSlider)
     {
         #if ImageProcessing_WindowLeftSide == ImageProcessing_Passthrough
-        fragmentOutputColor.rgba = texture(iChannel0, fragmentPixelCoordinates.xy).rgba;
+        setPassthroughImageProcessing(fragmentOutputColor.rgba, fragmentInputCoordinates.xy);
         #elif ImageProcessing_WindowLeftSide == ImageProcessing_GaussianBlur
-        setGaussianBlurImageProcessing(fragmentOutputColor.rgba, fragmentPixelCoordinates.xy);
+        setGaussianBlurImageProcessing(fragmentOutputColor.rgba, fragmentInputCoordinates.xy);
         #elif ImageProcessing_WindowLeftSide == ImageProcessing_EdgeDetection
-        setEdgeDetectionImageProcessing(fragmentOutputColor.rgba, fragmentPixelCoordinates.xy);
+        setEdgeDetectionImageProcessing(fragmentOutputColor.rgba, fragmentInputCoordinates.xy);
         #else
         fragmentOutputColor.rgba = vec4(1.0f, 0.0f, 1.0f, 1.0f).rgba;
         #endif
     }
-    else if (fragmentPixelCoordinates.x >= mouseInputHorizontalSlider)
+    else if (fragmentInputCoordinates.x / iChannelResolution[0u].x >= mouseInputHorizontalSlider)
     {
         #if ImageProcessing_WindowRightSide == ImageProcessing_Passthrough
-        fragmentOutputColor.rgba = texture(iChannel0, fragmentPixelCoordinates.xy).rgba;
+        setPassthroughImageProcessing(fragmentOutputColor.rgba, fragmentInputCoordinates.xy);
         #elif ImageProcessing_WindowRightSide == ImageProcessing_GaussianBlur
-        setGaussianBlurImageProcessing(fragmentOutputColor.rgba, fragmentPixelCoordinates.xy);
+        setGaussianBlurImageProcessing(fragmentOutputColor.rgba, fragmentInputCoordinates.xy);
         #elif ImageProcessing_WindowRightSide == ImageProcessing_EdgeDetection
-        setEdgeDetectionImageProcessing(fragmentOutputColor.rgba, fragmentPixelCoordinates.xy);
+        setEdgeDetectionImageProcessing(fragmentOutputColor.rgba, fragmentInputCoordinates.xy);
         #else
         fragmentOutputColor.rgba = vec4(1.0f, 0.0f, 1.0f, 1.0f).rgba;
         #endif
@@ -116,6 +142,8 @@ void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
     {
         fragmentOutputColor.rgba = vec4(1.0f, 0.0f, 1.0f, 1.0f).rgba;
     }
+    
+    setVignetteImageProcessing(fragmentOutputColor.rgba, fragmentInputCoordinates.xy, vec2(0.5f, 0.5f).xy, 0.75f, 0.75f);
 }
 
 // SHADERTOY BUFFER A
@@ -268,7 +296,7 @@ surface getSceneSurface(const in vec3 sampleRaypointPosition)
         vec3 prototypeTransformRotation = vec3(90.0f * iTime, 45.0f * iTime, 90.0f * iTime).xyz;
         float prototypeTransformScale = 10.0f;
         
-        material prototypeSurfaceMaterial = getPrototypeMaterial(vec3(0.0f, 1.0f, 1.0f).rgb);
+        material prototypeSurfaceMaterial = getPrototypeMaterial(vec3(1.0f, 0.0f, 1.0f).rgb);
         
         prototypeSurface = getPrototypeSurface(sampleRaypointPosition.xyz, prototypeTransformPosition.xyz, prototypeTransformRotation.xyz, prototypeTransformScale, prototypeSurfaceMaterial);
     }
@@ -385,7 +413,7 @@ void setFragmentBackgroundColor(inout vec3 fragmentOutputColor, const in vec2 fr
         fragmentOutputColor.rgb = FragmentBorderColor.rgb;
     }
     
-    vec2 fragmentBorderCoordinates = mod(fragmentPixelCoordinates.xy / FragmentGridDimension, 2.0f).xy;
+    vec2 fragmentBorderCoordinates = mod(fragmentPixelCoordinates.xy / FragmentGridDimension, vec2(2.0f, 2.0f).xy).xy;
     float fragmentBorderChecker = step(fragmentBorderCoordinates.x, FragmentBorderDimension) + step(fragmentBorderCoordinates.y, FragmentBorderDimension);
     
     if (fragmentBorderChecker >= 1.0f)
