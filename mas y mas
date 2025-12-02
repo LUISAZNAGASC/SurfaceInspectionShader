@@ -1,0 +1,65 @@
+struct light { vec3 lightTransformPosition; float lightSoftnessFactor; float lightHardnessFactor; vec4 lightEmissiveColor; };
+
+struct material { float materialAmbientFactor; vec4 materialAmbientColor; float materialDiffuseFactor; vec4 materialDiffuseColor; float materialSpecularFactor; vec4 materialSpecularColor; float materialSpecularAlpha; float materialFresnelFactor; vec4 materialFresnelColor; float materialFresnelAlpha; };
+
+struct surface { float surfaceSignedDistance; material surfaceMaterial; };
+
+void setFragmentForegroundColor(inout vec4 fragmentOutputColor, vec3 cameraTransformPosition, const in vec3 cameraTransformDirection, const in vec3 normalTransformPosition, const in vec3 normalTransformDirection, const in light sceneLight, const in material raymarchMaterial)
+{
+    vec3 observerTransformDirection = normalize(cameraTransformPosition.xyz - normalTransformPosition.xyz).xyz;
+    
+    vec3 lightTransformDirection = normalize(sceneLight.lightTransformPosition.xyz - normalTransformPosition.xyz).xyz;
+    
+    vec3 reflectionTransformDirection = normalize(reflect(-lightTransformDirection.xyz, normalTransformDirection.xyz).xyz).xyz;
+    
+    float raymarchMaterialAmbientStrength = clamp(raymarchMaterial.materialAmbientFactor, 0.0f, 1.0f);
+    raymarchMaterialAmbientStrength = raymarchMaterialAmbientStrength * clamp(sceneLight.lightSoftnessFactor, 0.0f, 1.0f);
+    
+    float raymarchMaterialDiffuseStrength = clamp(dot(lightTransformDirection.xyz, normalTransformDirection.xyz), 0.0f, 1.0f);
+    raymarchMaterialDiffuseStrength = raymarchMaterialDiffuseStrength * clamp(raymarchMaterial.materialDiffuseFactor, 0.0f, 1.0f);
+    raymarchMaterialDiffuseStrength = raymarchMaterialDiffuseStrength * clamp(sceneLight.lightHardnessFactor, 0.0f, 1.0f);
+    
+    const float RaymarchMaterialSpecularLowerAlpha = 0.0f;
+    const float RaymarchMaterialSpecularUpperAlpha = 128.0f;
+    float raymarchMaterialSpecularStrength = clamp(dot(reflectionTransformDirection.xyz, -observerTransformDirection.xyz), 0.0f, 1.0f);
+    raymarchMaterialSpecularStrength = pow(raymarchMaterialSpecularStrength, clamp(raymarchMaterial.materialSpecularAlpha, RaymarchMaterialSpecularLowerAlpha, RaymarchMaterialSpecularUpperAlpha));
+    raymarchMaterialSpecularStrength = raymarchMaterialSpecularStrength * clamp(raymarchMaterial.materialSpecularFactor, 0.0f, 1.0f);
+    raymarchMaterialSpecularStrength = raymarchMaterialSpecularStrength * clamp(sceneLight.lightHardnessFactor, 0.0f, 1.0f);
+    
+    const float RaymarchMaterialFresnelLowerAlpha = 0.0f;
+    const float RaymarchMaterialFresnelUpperAlpha = 10.0f;
+    float raymarchMaterialFresnelStrength = clamp(1.0f - dot(normalTransformDirection.xyz, -observerTransformDirection.xyz), 0.0f, 1.0f);
+    raymarchMaterialFresnelStrength = pow(raymarchMaterialFresnelStrength, clamp(raymarchMaterial.materialFresnelAlpha, RaymarchMaterialFresnelLowerAlpha, RaymarchMaterialFresnelUpperAlpha));
+    raymarchMaterialFresnelStrength = raymarchMaterialFresnelStrength * clamp(raymarchMaterial.materialFresnelFactor, 0.0f, 1.0f);
+    raymarchMaterialFresnelStrength = raymarchMaterialFresnelStrength * clamp(sceneLight.lightHardnessFactor, 0.0f, 1.0f);
+    
+    vec4 raymarchMaterialAmbientColor = clamp(raymarchMaterial.materialAmbientColor.rgba, vec4(0.0f, 0.0f, 0.0f, 1.0f).rgba, vec4(1.0f, 1.0f, 1.0f, 1.0f).rgba).rgba;
+    raymarchMaterialAmbientColor.rgba = raymarchMaterialAmbientColor.rgba * raymarchMaterialAmbientStrength;
+    raymarchMaterialAmbientColor.rgba = raymarchMaterialAmbientColor.rgba * clamp(sceneLight.lightEmissiveColor.rgba, vec4(0.0f, 0.0f, 0.0f, 1.0f).rgba, vec4(1.0f, 1.0f, 1.0f, 1.0f).rgba).rgba;
+    
+    vec4 raymarchMaterialDiffuseColor = clamp(raymarchMaterial.materialDiffuseColor.rgba, vec4(0.0f, 0.0f, 0.0f, 1.0f).rgba, vec4(1.0f, 1.0f, 1.0f, 1.0f).rgba).rgba;
+    raymarchMaterialDiffuseColor.rgba = raymarchMaterialDiffuseColor.rgba * raymarchMaterialDiffuseStrength;
+    raymarchMaterialDiffuseColor.rgba = raymarchMaterialDiffuseColor.rgba * clamp(sceneLight.lightEmissiveColor.rgba, vec4(0.0f, 0.0f, 0.0f, 1.0f).rgba, vec4(1.0f, 1.0f, 1.0f, 1.0f).rgba).rgba;
+    
+    vec4 raymarchMaterialSpecularColor = clamp(raymarchMaterial.materialSpecularColor.rgba, vec4(0.0f, 0.0f, 0.0f, 1.0f).rgba, vec4(1.0f, 1.0f, 1.0f, 1.0f).rgba).rgba;
+    raymarchMaterialSpecularColor.rgba = raymarchMaterialSpecularColor.rgba * raymarchMaterialSpecularStrength;
+    raymarchMaterialSpecularColor.rgba = raymarchMaterialSpecularColor.rgba * clamp(sceneLight.lightEmissiveColor.rgba, vec4(0.0f, 0.0f, 0.0f, 1.0f).rgba, vec4(1.0f, 1.0f, 1.0f, 1.0f).rgba).rgba;
+    
+    vec4 raymarchMaterialFresnelColor = clamp(raymarchMaterial.materialFresnelColor.rgba, vec4(0.0f, 0.0f, 0.0f, 1.0f).rgba, vec4(1.0f, 1.0f, 1.0f, 1.0f).rgba).rgba;
+    raymarchMaterialFresnelColor.rgba = raymarchMaterialFresnelColor.rgba * raymarchMaterialFresnelStrength;
+    raymarchMaterialFresnelColor.rgba = raymarchMaterialFresnelColor.rgba * clamp(sceneLight.lightEmissiveColor.rgba, vec4(0.0f, 0.0f, 0.0f, 1.0f).rgba, vec4(1.0f, 1.0f, 1.0f, 1.0f).rgba).rgba;
+    
+    vec4 raymarchMaterialResultColor = vec4(0.0f, 0.0f, 0.0f, 1.0f).rgba;
+    raymarchMaterialResultColor.rgba = raymarchMaterialResultColor.rgba + raymarchMaterialAmbientColor.rgba;
+    raymarchMaterialResultColor.rgba = raymarchMaterialResultColor.rgba + raymarchMaterialDiffuseColor.rgba;
+    raymarchMaterialResultColor.rgba = raymarchMaterialResultColor.rgba + raymarchMaterialSpecularColor.rgba;
+    raymarchMaterialResultColor.rgba = raymarchMaterialResultColor.rgba + raymarchMaterialFresnelColor.rgba;
+    raymarchMaterialResultColor.rgba = clamp(raymarchMaterialResultColor.rgba, vec4(0.0f, 0.0f, 0.0f, 1.0f).rgba, vec4(1.0f, 1.0f, 1.0f, 1.0f).rgba).rgba;
+    
+    fragmentOutputColor.rgba = fragmentOutputColor.rgba + raymarchMaterialResultColor.rgba;
+}
+
+void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
+{
+    
+}
