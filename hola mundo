@@ -170,10 +170,10 @@ surface getSceneSurface(const in vec3 sampleTransformPosition)
         float prototypeTransformScale = 10.0f;
         
         material prototypeSurfaceMaterial = material(
-        1.0f, vec4(0.0215f, 0.1745f, 	0.0215f, 1.0f).rgba,
-        1.0f, vec4(0.07568f, 0.61424, 0.07568f, 1.0f).rgba,
-        1.0f, vec4(	0.633f, 0.727811, 	0.633f, 1.0f).rgba, 128. * 0.6,
-        1.0f, vec4(1.0f, 1.0f, 1.0f, 1.0f).rgba, 10.0f);
+        1.0f, vec4(0.0f, 0.0f, 0.25f, 1.0f).rgba,
+        1.0f, vec4(0.0f, 0.0f, 0.5f, 1.0f).rgba,
+        1.0f, vec4(1.0f, 1.0f, 1.0f, 1.0f).rgba, 128.0,
+        1.0f, vec4(1.0f, 1.0f, 1.0f, 1.0f).rgba, 5.0f);
         
         prototypeSurface = getPrototypeSurface(sampleTransformPosition.xyz, prototypeTransformPosition.xyz, prototypeTransformRotation.xyz, prototypeTransformScale, prototypeSurfaceMaterial);
     }
@@ -267,6 +267,18 @@ void setFragmentForegroundColor(inout vec4 fragmentOutputColor, vec3 cameraTrans
     fragmentOutputColor.rgba =  fragmentOutputColor.rgba + raymarchMaterialResultColor.rgba;
 }
 
+void setVignetteImageProcessing(inout vec4 fragmentOutputColor, const in vec2 fragmentInputCoordinates, const in vec4 vignetteColor, const in float vignetteDimension, const in float vignetteRoundness, const in float vignetteSmoothness)
+{
+    vec2 fragmentPixelCoordinates = (2.0f * fragmentInputCoordinates.xy - iResolution.xy).xy / iResolution.xy;
+    
+    vec2 vignettePosition = abs(fragmentPixelCoordinates.xy).xy - vec2(vignetteDimension * (1.0f - vignetteRoundness), vignetteDimension * (1.0f - vignetteRoundness)).xy;
+    
+    float vignetteSignedDistance = min(max(vignettePosition.x, vignettePosition.y), 0.0f) + length(max(vignettePosition.xy, vec2(0.0f ,0.0f).xy).xy);
+    vignetteSignedDistance = 1.0f - smoothstep(0.0f, vignetteSmoothness, vignetteSignedDistance - vignetteDimension * vignetteRoundness);
+    
+    fragmentOutputColor.rgba = mix(fragmentOutputColor.rgba, vignetteColor.rgba, 1.0f - vignetteSignedDistance).rgba;
+}
+
 void setGammaCorrectionImageProcessing(inout vec4 fragmentOutputColor)
 {
     const vec4 GammaCorrectionColor = vec4(1.0f / 2.2f, 1.0f / 2.2f, 1.0f / 2.2f, 1.0f).rgba;
@@ -316,5 +328,6 @@ void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
         setFragmentBackgroundColor(fragmentOutputColor.rgba, fragmentInputCoordinates.xy, vec4(1.0f / 20.0f, 1.0f / 20.0f, 1.0f / 20.0f, 1.0f).rgba, vec4(1.0f / 10.0f, 1.0f / 10.0f, 1.0f / 10.0f, 1.0f).rgba, 0.25f, vec4(1.0f / 100.0f, 1.0f / 100.0f, 1.0f / 100.0f, 1.0f).rgba, 0.0075f);
     }
     
+    setVignetteImageProcessing(fragmentOutputColor.rgba, fragmentInputCoordinates.xy, vec4(1.0f / 100.0f, 1.0f / 100.0f, 1.0f / 100.0f, 1.0f).rgba, 0.5f, 0.5f, 0.5f);
     setGammaCorrectionImageProcessing(fragmentOutputColor.rgba);
 }
