@@ -1,0 +1,80 @@
+struct pointlight { vec3 pointlightTransformPosition; vec3 pointlightEmissiveColor; float pointlightEmissiveFactor; float pointlightEmissiveRange; };
+
+struct material { vec3 materialAlbedoColor; float materialAmbientFactor; float materialDiffuseFactor; float materialSpecularFactor; float materialSpecularShininess; };
+
+struct surface { float surfaceSignedDistance; material surfaceMaterial; };
+
+void setFragmentForegroundColor(inout vec3 fragmentOutputColor, const in vec3 cameraTransformPosition, const in vec3 cameraTransformDirection, const in pointlight pointlight, const in surface raymarchSurface)
+{
+    vec3 normalTransformPosition;
+    
+    vec3 normalTransformDirection;
+    
+    vec3 observerTransformDirection = normalize(cameraTransformPosition.xyz - normalTransformPosition.xyz).xyz;
+    
+    vec3 lightingTransformDirection = normalize(pointlight.pointlightTransformPosition.xyz - normalTransformPosition.xyz).xyz;
+    
+    vec3 brightnessTransformDirection = normalize(lightingTransformDirection.xyz + observerTransformDirection.xyz).xyz;
+    
+    float pointlightTransformDistance = length(pointlight.pointlightTransformPosition.xyz - normalTransformPosition.xyz);
+    
+    float pointlightAttenuationFactor = clamp(pointlightTransformDistance / pointlight.pointlightEmissiveRange, 0.0f, 1.0f);
+    pointlightAttenuationFactor = 1.0f - pointlightAttenuationFactor * pointlightAttenuationFactor;
+    pointlightAttenuationFactor = pointlightAttenuationFactor * pointlightAttenuationFactor;
+    
+    float raymarchMaterialAmbientStrength = clamp(0.5f + 0.5f * dot(normalTransformDirection.xyz, lightingTransformDirection.xyz), 0.0f, 1.0f);
+    raymarchMaterialAmbientStrength = raymarchMaterialAmbientStrength * clamp(raymarchSurface.surfaceMaterial.materialAmbientFactor, 0.0f, 1.0f);
+    raymarchMaterialAmbientStrength = raymarchMaterialAmbientStrength * clamp(pointlight.pointlightEmissiveFactor, 0.0f, 1.0f);
+    raymarchMaterialAmbientStrength = raymarchMaterialAmbientStrength * clamp(pointlightAttenuationFactor, 0.0f, 1.0f);
+    
+    float raymarchMaterialDiffuseStrength = clamp(dot(normalTransformDirection.xyz, lightingTransformDirection.xyz), 0.0f, 1.0f);
+    raymarchMaterialDiffuseStrength = raymarchMaterialDiffuseStrength * clamp(raymarchSurface.surfaceMaterial.materialDiffuseFactor, 0.0f, 1.0f);
+    raymarchMaterialDiffuseStrength = raymarchMaterialDiffuseStrength * clamp(pointlight.pointlightEmissiveFactor, 0.0f, 1.0f);
+    raymarchMaterialDiffuseStrength = raymarchMaterialDiffuseStrength * clamp(pointlightAttenuationFactor, 0.0f, 1.0f);
+    
+    const float RaymarchMaterialSpecularMinimumPower = 0.0f;
+    const float RaymarchMaterialSpecularMaximumPower = 100.0f;
+    float raymarchMaterialSpecularPower = clamp(raymarchSurface.surfaceMaterial.materialSpecularShininess, RaymarchMaterialSpecularMinimumPower, RaymarchMaterialSpecularMaximumPower);
+    float raymarchMaterialSpecularStrength = clamp(dot(brightnessTransformDirection.xyz, normalTransformDirection.xyz), 0.0f, 1.0f);
+    raymarchMaterialSpecularStrength = pow(raymarchMaterialSpecularStrength, raymarchMaterialSpecularPower);
+    raymarchMaterialSpecularStrength = raymarchMaterialSpecularStrength * clamp(raymarchSurface.surfaceMaterial.materialSpecularFactor, 0.0f, 1.0f);
+    raymarchMaterialSpecularStrength = raymarchMaterialSpecularStrength * clamp(pointlight.pointlightEmissiveFactor, 0.0f, 1.0f);
+    raymarchMaterialSpecularStrength = raymarchMaterialSpecularStrength * clamp(pointlightAttenuationFactor, 0.0f, 1.0f);
+    
+    vec3 raymarchMaterialAmbientColor = clamp(raymarchSurface.surfaceMaterial.materialAlbedoColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    raymarchMaterialAmbientColor.rgb = raymarchMaterialAmbientColor.rgb * clamp(pointlight.pointlightEmissiveColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    raymarchMaterialAmbientColor.rgb = raymarchMaterialAmbientColor.rgb * raymarchMaterialAmbientStrength;
+    
+    vec3 raymarchMaterialDiffuseColor = clamp(raymarchSurface.surfaceMaterial.materialAlbedoColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    raymarchMaterialDiffuseColor.rgb = raymarchMaterialDiffuseColor.rgb * clamp(pointlight.pointlightEmissiveColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    raymarchMaterialDiffuseColor.rgb = raymarchMaterialDiffuseColor.rgb * raymarchMaterialDiffuseStrength;
+    
+    vec3 raymarchMaterialSpecularColor = clamp(raymarchSurface.surfaceMaterial.materialAlbedoColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    raymarchMaterialSpecularColor.rgb = raymarchMaterialSpecularColor.rgb * clamp(pointlight.pointlightEmissiveColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    raymarchMaterialSpecularColor.rgb = raymarchMaterialSpecularColor.rgb * raymarchMaterialSpecularStrength;
+    
+    vec3 raymarchMaterialCompleteColor = vec3(0.0f, 0.0f, 0.0f).rgb;
+    raymarchMaterialCompleteColor.rgb = raymarchMaterialCompleteColor.rgb + raymarchMaterialAmbientColor.rgb;
+    raymarchMaterialCompleteColor.rgb = raymarchMaterialCompleteColor.rgb + raymarchMaterialDiffuseColor.rgb;
+    raymarchMaterialCompleteColor.rgb = raymarchMaterialCompleteColor.rgb + raymarchMaterialSpecularColor.rgb;
+    
+    fragmentOutputColor.rgb = raymarchMaterialCompleteColor.rgb;
+}
+
+void setGammaCorrectionImageProcessing(inout vec3 fragmentOutputColor, const in float gammaCorrectionIntensity)
+{
+    fragmentOutputColor.rgb = pow(fragmentOutputColor.rgb, vec3(gammaCorrectionIntensity, gammaCorrectionIntensity, gammaCorrectionIntensity).rgb).rgb;
+}
+
+void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
+{
+    fragmentOutputColor.rgba = vec4(0.0f, 0.0f, 0.0f, 1.0f).rgba;
+    
+    vec2 fragmentPixelCoordinates = (2.0f * fragmentInputCoordinates.xy - iResolution.xy).xy / min(iResolution.x, iResolution.y);
+    
+    fragmentOutputColor.rgb = vec3(fragmentPixelCoordinates.x, fragmentPixelCoordinates.y, 0.0f).rgb;
+    
+    setGammaCorrectionImageProcessing(fragmentOutputColor.rgb, 1.0f / 2.2f);
+    
+    fragmentOutputColor.rgba = vec4(fragmentOutputColor.r, fragmentOutputColor.g, fragmentOutputColor.b, 1.0f).rgba;
+}
