@@ -1,0 +1,368 @@
+const float CameraDisplayNearClippingPlane = 0.0001f;
+
+const float CameraDisplayFarClippingPlane = 500.0f;
+
+const vec3 CameraTransformLookAtPoint = vec3(0.0f, 0.0f, 0.0f).xyz;
+
+struct pointlight { vec3 pointlightTransformPosition; vec3 pointlightEmissiveColor; float pointlightEmissiveFactor; float pointlightEmissiveRange; };
+
+struct material { vec3 materialAlbedoColor; float materialAmbientFactor; float materialDiffuseFactor; float materialSpecularFactor; float materialSpecularShininess; };
+
+struct surface { float surfaceDistance; material surfaceMaterial; };
+
+mat3 getTransformEulerOrientation(const in vec3 transformTargetRotation)
+{
+    vec3 transformSineRotation = sin(radians(transformTargetRotation.xyz).xyz).xyz;
+
+    vec3 transformCosineRotation = cos(radians(transformTargetRotation.xyz).xyz).xyz;
+
+    mat3 transformPitchOrientation = mat3(vec3(1.0f, 0.0f, 0.0f).xyz, vec3(0.0f, 1.0f, 0.0f).xyz, vec3(0.0f, 0.0f, 1.0f).xyz);
+    transformPitchOrientation[0u].xyz = vec3(1.0f, 0.0f, 0.0f).xyz;
+    transformPitchOrientation[1u].xyz = vec3(0.0f, transformCosineRotation.x, -transformSineRotation.x).xyz;
+    transformPitchOrientation[2u].xyz = vec3(0.0f, transformSineRotation.x, transformCosineRotation.x).xyz;
+
+    mat3 transformYawOrientation = mat3(vec3(1.0f, 0.0f, 0.0f).xyz, vec3(0.0f, 1.0f, 0.0f).xyz, vec3(0.0f, 0.0f, 1.0f).xyz);
+    transformYawOrientation[0u].xyz = vec3(transformCosineRotation.y, 0.0f, transformSineRotation.y).xyz;
+    transformYawOrientation[1u].xyz = vec3(0.0f, 1.0f, 0.0f).xyz;
+    transformYawOrientation[2u].xyz = vec3(-transformSineRotation.y, 0.0f, transformCosineRotation.y).xyz;
+
+    mat3 transformRollOrientation = mat3(vec3(1.0f, 0.0f, 0.0f).xyz, vec3(0.0f, 1.0f, 0.0f).xyz, vec3(0.0f, 0.0f, 1.0f).xyz);
+    transformRollOrientation[0u].xyz = vec3(transformCosineRotation.z, -transformSineRotation.z, 0.0f).xyz;
+    transformRollOrientation[1u].xyz = vec3(transformSineRotation.z, transformCosineRotation.z, 0.0f).xyz;
+    transformRollOrientation[2u].xyz = vec3(0.0f, 0.0f, 1.0f).xyz;
+
+    mat3 transformEulerOrientation = transformPitchOrientation * transformYawOrientation * transformRollOrientation;
+
+    return transformEulerOrientation;
+}
+
+mat3 getTransformLookAtOrientation(const in vec3 transformOriginPosition, const in vec3 transformTargetPosition)
+{
+    vec3 transformForwardDirection = normalize(transformTargetPosition.xyz - transformOriginPosition.xyz).xyz;
+
+    vec3 transformRightwardDirection = normalize(cross(vec3(0.0f, 1.0f, 0.0f).xyz, transformForwardDirection.xyz).xyz).xyz;
+
+    vec3 transformUpwardDirection = normalize(cross(transformForwardDirection.xyz, transformRightwardDirection.xyz).xyz).xyz;
+
+    mat3 transformLookAtOrientation = mat3(-transformRightwardDirection.xyz, transformUpwardDirection.xyz, -transformForwardDirection.xyz);
+
+    return transformLookAtOrientation;
+}
+
+surface getMixedSurface(const in surface firstSurface, const in surface secondSurface, const in float mixedSurfaceSmoothness)
+{
+    float surfaceDistanceFactor = clamp(0.5f + 0.5f * (firstSurface.surfaceDistance - secondSurface.surfaceDistance) / mixedSurfaceSmoothness, 0.0f, 1.0f);
+
+    float mixedSurfaceDistance = mix(firstSurface.surfaceDistance, secondSurface.surfaceDistance, surfaceDistanceFactor);
+    mixedSurfaceDistance = mixedSurfaceDistance - mixedSurfaceSmoothness * surfaceDistanceFactor * (1.0f - surfaceDistanceFactor);
+
+    float surfaceMaterialFactor = abs(mixedSurfaceDistance - firstSurface.surfaceDistance) + abs(mixedSurfaceDistance - secondSurface.surfaceDistance);
+    surfaceMaterialFactor = clamp(abs(mixedSurfaceDistance - firstSurface.surfaceDistance) / max(surfaceMaterialFactor, 0.000001f), 0.0f, 1.0f);
+
+    material mixedSurfaceMaterial;
+    mixedSurfaceMaterial.materialAlbedoColor.rgb = mix(firstSurface.surfaceMaterial.materialAlbedoColor.rgb, secondSurface.surfaceMaterial.materialAlbedoColor.rgb, surfaceMaterialFactor).rgb;
+    mixedSurfaceMaterial.materialAmbientFactor = mix(firstSurface.surfaceMaterial.materialAmbientFactor, secondSurface.surfaceMaterial.materialAmbientFactor, surfaceMaterialFactor);
+    mixedSurfaceMaterial.materialDiffuseFactor = mix(firstSurface.surfaceMaterial.materialDiffuseFactor, secondSurface.surfaceMaterial.materialDiffuseFactor, surfaceMaterialFactor);
+    mixedSurfaceMaterial.materialSpecularFactor = mix(firstSurface.surfaceMaterial.materialSpecularFactor, secondSurface.surfaceMaterial.materialSpecularFactor, surfaceMaterialFactor);
+    mixedSurfaceMaterial.materialSpecularShininess = mix(firstSurface.surfaceMaterial.materialSpecularShininess, secondSurface.surfaceMaterial.materialSpecularShininess, surfaceMaterialFactor);
+
+    surface mixedSurface = surface(mixedSurfaceDistance, mixedSurfaceMaterial);
+
+    return mixedSurface;
+}
+
+float a = 10.0f;
+
+surface getSphereSurface(const in vec3 sceneTransformPosition, const in vec3 sphereTransformPosition, const in float sphereTransformRadius, const in material sphereSurfaceMaterial)
+{
+    vec3 sphereTransformCoordinates = (sceneTransformPosition.xyz - sphereTransformPosition.xyz).xyz;
+
+    float sphereSurfaceDistance = length(sphereTransformCoordinates.xyz) - abs(sphereTransformRadius);
+
+    surface sphereSurface = surface(sphereSurfaceDistance, sphereSurfaceMaterial);
+
+    return sphereSurface;
+}
+
+material metaballMaterial = material(
+    vec3(1.0, 1.0f, 0.0f),
+    0.25,
+    0.75,
+    1.0,
+    50.0
+);
+
+vec3 metaballPos1(float t) { 
+    return CameraTransformLookAtPoint - a * vec3(
+        cos(t * 1.357),   // Reemplazo la parte decimal 0.735 por 0.357 (mantengo la parte entera)
+        sin(t * 0.573),   // Reemplazo la parte decimal 1.573 por 1.735 (mantengo la parte entera)
+        sin(t * 0.735)    // Reemplazo la parte decimal 1.357 por 1.573 (mantengo la parte entera)
+    ); 
+}
+
+vec3 metaballPos2(float t) { 
+    return CameraTransformLookAtPoint + a * vec3(
+        cos(t * 0.375),   // Reemplazo la parte decimal 1.375 por 1.375 (mantengo la parte entera)
+        sin(t * 1.537),   // Reemplazo la parte decimal 0.537 por 0.537 (mantengo la parte entera)
+        sin(t * 1.753)    // Reemplazo la parte decimal 1.753 por 1.753 (mantengo la parte entera)
+    ); 
+}
+
+vec3 metaballPos3(float t) { 
+    return CameraTransformLookAtPoint - a * vec3(
+        sin(t * 0.357),   // Reemplazo la parte decimal 1.573 por 1.573 (mantengo la parte entera)
+        cos(t * 1.573),   // Reemplazo la parte decimal 1.375 por 1.375 (mantengo la parte entera)
+        sin(t * 0.735)    // Reemplazo la parte decimal 0.753 por 0.735 (mantengo la parte entera)
+    ); 
+}
+
+vec3 metaballPos4(float t) { 
+    return CameraTransformLookAtPoint + a * vec3(
+        sin(t * 1.375),   // Reemplazo la parte decimal 1.357 por 1.357 (mantengo la parte entera)
+        cos(t * 0.537),   // Reemplazo la parte decimal 0.735 por 0.735 (mantengo la parte entera)
+        sin(t * 1.753)    // Reemplazo la parte decimal 0.573 por 0.573 (mantengo la parte entera)
+    ); 
+}
+
+vec3 metaballPos5(float t) { 
+    return CameraTransformLookAtPoint - a* vec3(
+        sin(t * 0.357),   // Reemplazo la parte decimal 0.537 por 0.537 (mantengo la parte entera)
+        sin(t * 0.573),   // Reemplazo la parte decimal 1.357 por 1.357 (mantengo la parte entera)
+        cos(t * 1.735)    // Reemplazo la parte decimal 0.735 por 0.735 (mantengo la parte entera)
+    ); 
+}
+
+vec3 metaballPos6(float t) { 
+    return CameraTransformLookAtPoint + a * vec3(
+        sin(t * 1.375),   // Reemplazo la parte decimal 0.753 por 0.753 (mantengo la parte entera)
+        sin(t * 1.573),   // Reemplazo la parte decimal 0.735 por 0.735 (mantengo la parte entera)
+        cos(t * 0.753)    // Reemplazo la parte decimal 1.375 por 1.375 (mantengo la parte entera)
+    ); 
+}
+
+
+/*surface getSceneSurface(const in vec3 sampleTransformPosition)
+{
+    surface sceneSurface = getSphereSurface(sampleTransformPosition.xyz, CameraTransformLookAtPoint.xyz, vec3(0.0f, 0.0f, 0.0f).xyz, 10.0f * 2.0f / 3.0f, material(vec3(1.0f, 1.0f, 1.0f).rgb, 0.25f, 0.75f, 1.0f, 25.0f));
+    
+    return sceneSurface;
+}*/
+
+surface getSceneSurface(const in vec3 p)
+{
+    float t = iTime;
+    float radius = 10.0;
+    float smoothness = 5.0f; // equivalente al "k" del blob5
+
+    surface s1 = getSphereSurface(p, metaballPos1(t), radius, metaballMaterial);
+surface s2 = getSphereSurface(p, metaballPos2(t), radius, metaballMaterial);
+surface s3 = getSphereSurface(p, metaballPos3(t), radius, metaballMaterial);
+surface s4 = getSphereSurface(p, metaballPos4(t), radius, metaballMaterial);
+surface s5 = getSphereSurface(p, metaballPos5(t), radius, metaballMaterial);
+surface s6 = getSphereSurface(p, metaballPos6(t), radius, metaballMaterial);
+
+surface s = s1;
+s = getMixedSurface(s, s2, smoothness);
+s = getMixedSurface(s, s3, smoothness);
+s = getMixedSurface(s, s4, smoothness);
+s = getMixedSurface(s, s5, smoothness);
+s = getMixedSurface(s, s6, smoothness);
+
+return s;
+}
+
+
+surface getRaymarchSurface(const in vec3 sampleTransformPosition, const in vec3 sampleTransformDirection)
+{
+    float raymarchSurfaceDistance = abs(CameraDisplayNearClippingPlane - CameraDisplayNearClippingPlane);
+
+    surface raymarchSurface;
+    raymarchSurface.surfaceDistance = raymarchSurfaceDistance;
+
+    const float RaymarchSurfaceIterator = 1000.0f;
+
+    for (float raymarchSurfaceCounter = 0.0f; raymarchSurfaceCounter < RaymarchSurfaceIterator; raymarchSurfaceCounter++)
+    {
+        raymarchSurface = getSceneSurface(sampleTransformPosition.xyz + raymarchSurfaceDistance * sampleTransformDirection.xyz);
+
+        if (raymarchSurface.surfaceDistance < CameraDisplayNearClippingPlane || raymarchSurfaceDistance > CameraDisplayFarClippingPlane) break;
+
+
+
+
+
+        raymarchSurfaceDistance = raymarchSurfaceDistance + raymarchSurface.surfaceDistance;
+    }
+
+    raymarchSurface.surfaceDistance = raymarchSurfaceDistance;
+
+    return raymarchSurface;
+}
+
+void setFragmentBackgroundColor(inout vec4 fragmentOutputColor, const in vec2 fragmentInputCoordinates, const in vec4 fragmentTileEvenColor, const in vec4 fragmentTileOddColor, const in float fragmentTileDimension, const in vec4 fragmentLineColor, const in float fragmentLineDimension)
+{
+    vec2 fragmentOffsetCoordinates = (iResolution.x < iResolution.y ? vec2(1.0f, 0.0f).xy : iResolution.x > iResolution.y ? vec2(0.0f, 1.0f).xy : vec2(0.0f, 0.0f).xy).xy;
+
+    vec2 fragmentTileCoordinates = (2.0f * fragmentInputCoordinates.xy - iResolution.xy).xy / min(iResolution.x, iResolution.y);
+    fragmentTileCoordinates.xy = fragmentTileCoordinates.xy + vec2(fragmentTileDimension, fragmentTileDimension).xy * fragmentOffsetCoordinates.xy;
+    fragmentTileCoordinates.xy = floor(fragmentTileCoordinates.xy / vec2(fragmentTileDimension, fragmentTileDimension).xy).xy;
+
+    float fragmentTileChecker = step(fragmentTileDimension, mod(fragmentTileCoordinates.x + fragmentTileCoordinates.y, 2.0f));
+
+    fragmentOutputColor.rgba = mix(fragmentTileEvenColor.rgba, fragmentTileOddColor.rgba, fragmentTileChecker).rgba;
+
+    vec2 fragmentLineCoordinates = (2.0f * fragmentInputCoordinates.xy - iResolution.xy).xy / min(iResolution.x, iResolution.y);
+    fragmentLineCoordinates.xy = fragmentLineCoordinates.xy + vec2(fragmentTileDimension, fragmentTileDimension).xy * fragmentOffsetCoordinates.xy;
+    fragmentLineCoordinates.xy = mod(fragmentLineCoordinates.xy, vec2(fragmentTileDimension, fragmentTileDimension).xy).xy;
+    fragmentLineCoordinates.xy = min(fragmentLineCoordinates.xy, vec2(fragmentTileDimension, fragmentTileDimension).xy - fragmentLineCoordinates.xy).xy;
+
+    float fragmentLineChecker = step(min(fragmentLineCoordinates.x, fragmentLineCoordinates.y), fragmentLineDimension);
+
+    fragmentOutputColor.rgba = mix(fragmentOutputColor.rgba, fragmentLineColor.rgba, fragmentLineChecker).rgba;
+}
+
+void setFragmentForegroundColor(inout vec3 fragmentOutputColor, const in vec3 cameraTransformPosition, const in vec3 cameraTransformDirection, const in vec3 surfaceTransformPosition, const in vec3 surfaceTransformDirection, const in pointlight pointlight, const in material surfaceMaterial)
+{
+    vec3 observerTransformDirection = normalize(cameraTransformPosition.xyz - surfaceTransformPosition.xyz).xyz;
+    observerTransformDirection.xyz = (length(observerTransformDirection.xyz) > 0.0001f ? observerTransformDirection.xyz : cameraTransformDirection.xyz).xyz;
+
+    vec3 lightingTransformDirection = normalize(pointlight.pointlightTransformPosition.xyz - surfaceTransformPosition.xyz).xyz;
+
+    vec3 brightnessTransformDirection = normalize(lightingTransformDirection.xyz + observerTransformDirection.xyz).xyz;
+    brightnessTransformDirection.xyz = (length(brightnessTransformDirection.xyz) > 0.0001f ? brightnessTransformDirection.xyz : lightingTransformDirection.xyz).xyz;
+
+    float pointlightTransformDistance = length(pointlight.pointlightTransformPosition.xyz - surfaceTransformPosition.xyz);
+
+    float pointlightAttenuationFactor = clamp(pointlightTransformDistance / pointlight.pointlightEmissiveRange, 0.0f, 1.0f);
+    pointlightAttenuationFactor = 1.0f - pointlightAttenuationFactor * pointlightAttenuationFactor;
+    pointlightAttenuationFactor = pointlightAttenuationFactor * pointlightAttenuationFactor;
+
+    float surfaceMaterialAmbientStrength = clamp(0.5f + 0.5f * dot(surfaceTransformDirection.xyz, lightingTransformDirection.xyz), 0.0f, 1.0f);
+    surfaceMaterialAmbientStrength = surfaceMaterialAmbientStrength * clamp(surfaceMaterial.materialAmbientFactor, 0.0f, 1.0f);
+    surfaceMaterialAmbientStrength = surfaceMaterialAmbientStrength * clamp(pointlight.pointlightEmissiveFactor, 0.0f, 1.0f);
+    surfaceMaterialAmbientStrength = surfaceMaterialAmbientStrength * clamp(pointlightAttenuationFactor, 0.0f, 1.0f);
+
+    float surfaceMaterialDiffuseStrength = clamp(dot(surfaceTransformDirection.xyz, lightingTransformDirection.xyz), 0.0f, 1.0f);
+    surfaceMaterialDiffuseStrength = surfaceMaterialDiffuseStrength * clamp(surfaceMaterial.materialDiffuseFactor, 0.0f, 1.0f);
+    surfaceMaterialDiffuseStrength = surfaceMaterialDiffuseStrength * clamp(pointlight.pointlightEmissiveFactor, 0.0f, 1.0f);
+    surfaceMaterialDiffuseStrength = surfaceMaterialDiffuseStrength * clamp(pointlightAttenuationFactor, 0.0f, 1.0f);
+
+    const float SurfaceMaterialSpecularMinimumPower = 0.0f;
+    const float SurfaceMaterialSpecularMaximumPower = 100.0f;
+    float surfaceMaterialSpecularPower = clamp(surfaceMaterial.materialSpecularShininess, SurfaceMaterialSpecularMinimumPower, SurfaceMaterialSpecularMaximumPower);
+    float surfaceMaterialSpecularStrength = clamp(dot(brightnessTransformDirection.xyz, surfaceTransformDirection.xyz), 0.0f, 1.0f);
+    surfaceMaterialSpecularStrength = pow(surfaceMaterialSpecularStrength, surfaceMaterialSpecularPower);
+    surfaceMaterialSpecularStrength = surfaceMaterialSpecularStrength * clamp(surfaceMaterial.materialSpecularFactor, 0.0f, 1.0f);
+    surfaceMaterialSpecularStrength = surfaceMaterialSpecularStrength * clamp(pointlight.pointlightEmissiveFactor, 0.0f, 1.0f);
+    surfaceMaterialSpecularStrength = surfaceMaterialSpecularStrength * clamp(pointlightAttenuationFactor, 0.0f, 1.0f);
+
+    vec3 surfaceMaterialAmbientColor = clamp(surfaceMaterial.materialAlbedoColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    surfaceMaterialAmbientColor.rgb = surfaceMaterialAmbientColor.rgb * clamp(pointlight.pointlightEmissiveColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    surfaceMaterialAmbientColor.rgb = surfaceMaterialAmbientColor.rgb * surfaceMaterialAmbientStrength;
+
+    vec3 surfaceMaterialDiffuseColor = clamp(surfaceMaterial.materialAlbedoColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    surfaceMaterialDiffuseColor.rgb = surfaceMaterialDiffuseColor.rgb * clamp(pointlight.pointlightEmissiveColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    surfaceMaterialDiffuseColor.rgb = surfaceMaterialDiffuseColor.rgb * surfaceMaterialDiffuseStrength;
+
+    vec3 surfaceMaterialSpecularColor = clamp(surfaceMaterial.materialAlbedoColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    surfaceMaterialSpecularColor.rgb = surfaceMaterialSpecularColor.rgb * clamp(pointlight.pointlightEmissiveColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    surfaceMaterialSpecularColor.rgb = surfaceMaterialSpecularColor.rgb * surfaceMaterialSpecularStrength;
+
+
+
+
+    vec3 surfaceMaterialCompleteColor = vec3(0.0f, 0.0f, 0.0f).rgb;
+    surfaceMaterialCompleteColor.rgb = surfaceMaterialCompleteColor.rgb + surfaceMaterialAmbientColor.rgb;
+    surfaceMaterialCompleteColor.rgb = surfaceMaterialCompleteColor.rgb + surfaceMaterialDiffuseColor.rgb;
+    surfaceMaterialCompleteColor.rgb = surfaceMaterialCompleteColor.rgb + surfaceMaterialSpecularColor.rgb;
+
+    fragmentOutputColor.rgb = fragmentOutputColor.rgb + surfaceMaterialCompleteColor.rgb;
+}
+
+void setVignetteImageProcessing(inout vec4 fragmentOutputColor, const in vec2 fragmentInputCoordinates, const in vec4 vignetteMaskColor, const in float vignetteTransformScale, const in float vignetteMaskRoundness, const in float vignetteMaskSmoothness)
+{
+    vec2 fragmentPixelCoordinates = (2.0f * fragmentInputCoordinates.xy - iResolution.xy).xy / iResolution.xy;
+
+    vec2 vignetteTransformPosition = abs(fragmentPixelCoordinates.xy).xy - vec2(vignetteTransformScale * (1.0f - vignetteMaskRoundness), vignetteTransformScale * (1.0f - vignetteMaskRoundness)).xy;
+
+    float vignetteMaskDistance = min(max(vignetteTransformPosition.x, vignetteTransformPosition.y), 0.0f) + length(max(vignetteTransformPosition.xy, vec2(0.0f, 0.0f).xy).xy);
+    vignetteMaskDistance = 1.0f - smoothstep(0.0f, vignetteMaskSmoothness, vignetteMaskDistance - vignetteTransformScale * vignetteMaskRoundness);
+
+    fragmentOutputColor.rgba = mix(fragmentOutputColor.rgba, vignetteMaskColor.rgba, 1.0f - vignetteMaskDistance).rgba;
+}
+
+void setGammaCorrectionImageProcessing(inout vec4 fragmentOutputColor)
+{
+    const vec4 GammaCorrectionColor = vec4(1.0f / 2.2f, 1.0f / 2.2f, 1.0f / 2.2f, 1.0f).rgba;
+
+    fragmentOutputColor.rgba = pow(fragmentOutputColor.rgba, GammaCorrectionColor.rgba).rgba;
+}
+
+void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
+{
+    fragmentOutputColor.rgba = vec4(0.0f, 0.0f, 0.0f, 1.0f).rgba;
+
+    // --- Cámara orbital ---
+float yaw   = iTime;   // rotación horizontal
+float pitch = 0.;           // inclinación vertical
+float distance = 50.0;       // radio de la órbita
+
+mat3 orbitRotation = getTransformEulerOrientation(
+    vec3(degrees(pitch), degrees(yaw), 0.0)
+);
+
+vec3 cameraTransformPosition =
+    CameraTransformLookAtPoint +
+    orbitRotation * vec3(0.0, 0.0, distance);
+
+    //vec3 cameraTransformPosition = vec3(25.0f, 25.0f, 25.0f).xyz;
+
+    mat3 cameraTransformOrientation = getTransformLookAtOrientation(cameraTransformPosition.xyz, CameraTransformLookAtPoint.xyz);
+
+    vec2 cameraViewportCoordinates = (2.0f * fragmentInputCoordinates.xy - iResolution.xy).xy / min(iResolution.x, iResolution.y);
+
+    const float CameraDisplayMinimumFieldOfView = 10.0f;
+    const float CameraDisplayMaximumFieldOfView = 170.0f;
+    float cameraDisplayFieldOfView = clamp(60.0f, CameraDisplayMinimumFieldOfView, CameraDisplayMaximumFieldOfView);
+
+    float cameraDisplayFocalLength = 1.0f / tan(0.5f * radians(cameraDisplayFieldOfView));
+
+    vec3 cameraTransformDirection = cameraTransformOrientation * normalize(vec3(cameraViewportCoordinates.x, cameraViewportCoordinates.y, -cameraDisplayFocalLength).xyz).xyz;
+
+    surface raymarchSurface = getRaymarchSurface(cameraTransformPosition.xyz, cameraTransformDirection.xyz);
+
+    if (raymarchSurface.surfaceDistance < CameraDisplayNearClippingPlane || raymarchSurface.surfaceDistance > CameraDisplayFarClippingPlane)
+    {
+        setFragmentBackgroundColor(fragmentOutputColor.rgba, fragmentInputCoordinates.xy, vec4(1.0f / 20.0f, 1.0f / 20.0f, 1.0f / 20.0f, 1.0f).rgba, vec4(1.0f / 10.0f, 1.0f / 10.0f, 1.0f / 10.0f, 1.0f).rgba, 0.25f, vec4(1.0f / 100.0f, 1.0f / 100.0f, 1.0f / 100.0f, 1.0f).rgba, 0.005f);
+    }
+    else
+    {
+        vec3 surfaceTransformPosition = cameraTransformPosition.xyz + raymarchSurface.surfaceDistance * cameraTransformDirection.xyz;
+
+        vec3 surfaceTransformDirection = vec3(0.0f, 0.0f, 0.0f).xyz;
+        surfaceTransformDirection.x = getSceneSurface(surfaceTransformPosition.xyz + vec3(0.0001f, 0.0f, 0.0f).xyz).surfaceDistance - getSceneSurface(surfaceTransformPosition.xyz - vec3(0.0001f, 0.0f, 0.0f).xyz).surfaceDistance;
+        surfaceTransformDirection.y = getSceneSurface(surfaceTransformPosition.xyz + vec3(0.0f, 0.0001f, 0.0f).xyz).surfaceDistance - getSceneSurface(surfaceTransformPosition.xyz - vec3(0.0f, 0.0001f, 0.0f).xyz).surfaceDistance;
+        surfaceTransformDirection.z = getSceneSurface(surfaceTransformPosition.xyz + vec3(0.0f, 0.0f, 0.0001f).xyz).surfaceDistance - getSceneSurface(surfaceTransformPosition.xyz - vec3(0.0f, 0.0f, 0.0001f).xyz).surfaceDistance;
+        surfaceTransformDirection.xyz = normalize(surfaceTransformDirection.xyz).xyz;
+
+        pointlight pointlight01 = pointlight(vec3(-50.0f, 25.0f, 50.0f).xyz, vec3(1.0f, 1.0f, 1.0f).rgb, 0.25f, 100.0f);
+
+        setFragmentForegroundColor(fragmentOutputColor.rgb, cameraTransformPosition.xyz, cameraTransformDirection.xyz, surfaceTransformPosition.xyz, surfaceTransformDirection.xyz, pointlight01, raymarchSurface.surfaceMaterial);
+
+        pointlight pointlight02 = pointlight(vec3(50.0f, 25.0f, 50.0f).xyz, vec3(1.0f, 1.0f, 1.0f).rgb, 0.75f, 125.0f);
+
+        setFragmentForegroundColor(fragmentOutputColor.rgb, cameraTransformPosition.xyz, cameraTransformDirection.xyz, surfaceTransformPosition.xyz, surfaceTransformDirection.xyz, pointlight02, raymarchSurface.surfaceMaterial);
+        
+        pointlight pointlight03 = pointlight(vec3(-50.0f, 25.0f, -50.0f).xyz, vec3(1.0f, 1.0f, 1.0f).rgb, 0.75f, 125.0f);
+
+        setFragmentForegroundColor(fragmentOutputColor.rgb, cameraTransformPosition.xyz, cameraTransformDirection.xyz, surfaceTransformPosition.xyz, surfaceTransformDirection.xyz, pointlight03, raymarchSurface.surfaceMaterial);
+
+        pointlight pointlight04 = pointlight(vec3(50.0f, 25.0f, -50.0f).xyz, vec3(1.0f, 1.0f, 1.0f).rgb, 0.25f, 100.0f);
+
+        setFragmentForegroundColor(fragmentOutputColor.rgb, cameraTransformPosition.xyz, cameraTransformDirection.xyz, surfaceTransformPosition.xyz, surfaceTransformDirection.xyz, pointlight04, raymarchSurface.surfaceMaterial);
+    }
+
+    setVignetteImageProcessing(fragmentOutputColor.rgba, fragmentInputCoordinates.xy, vec4(1.0f / 100.0f, 1.0f / 100.0f, 1.0f / 100.0f, 1.0f).rgba, 0.5f, 0.5f, 0.5f);
+
+    setGammaCorrectionImageProcessing(fragmentOutputColor.rgba);
+}
