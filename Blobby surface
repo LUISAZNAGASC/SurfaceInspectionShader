@@ -285,13 +285,13 @@ void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
         surfaceTransformDirection.z = getSceneSurface(surfaceTransformPosition.xyz + vec3(0.0f, 0.0f, 0.0001f).xyz).surfaceDistance - getSceneSurface(surfaceTransformPosition.xyz - vec3(0.0f, 0.0f, 0.0001f).xyz).surfaceDistance;
         surfaceTransformDirection.xyz = normalize(surfaceTransformDirection.xyz).xyz;
         
-        pointlight pointlight01 = pointlight(vec3(-50.0f, 50.0f, -50.0f).xyz, vec3(1.0f, 0.0f, 0.0f).rgb, 1.0f, 100.0f);
+        pointlight pointlight01 = pointlight(vec3(-50.0f, 50.0f, -50.0f).xyz, vec3(1.0f, 1.0f, 1.0f).rgb, 1.0f, 100.0f);
         
-        pointlight pointlight02 = pointlight(vec3(-50.0f, 50.0f, 50.0f).xyz, vec3(0.0f, 1.0f, 0.0f).rgb, 1.0f, 100.0f);
+        pointlight pointlight02 = pointlight(vec3(-50.0f, 50.0f, 50.0f).xyz, vec3(1.0f, 1.0f, 1.0f).rgb, 1.0f, 100.0f);
         
-        pointlight pointlight03 = pointlight(vec3(50.0f, 50.0f, -50.0f).xyz, vec3(0.0f, 1.0f, 0.0f).rgb, 1.0f, 100.0f);
+        pointlight pointlight03 = pointlight(vec3(50.0f, 50.0f, -50.0f).xyz, vec3(1.0f, 1.0f, 1.0f).rgb, 1.0f, 100.0f);
         
-        pointlight pointlight04 = pointlight(vec3(50.0f, 50.0f, 50.0f).xyz, vec3(0.0f, 0.0f, 1.0f).rgb, 1.0f, 100.0f);
+        pointlight pointlight04 = pointlight(vec3(50.0f, 50.0f, 50.0f).xyz, vec3(1.0f, 1.0f, 1.0f).rgb, 1.0f, 100.0f);
         
         setFragmentForegroundColor(fragmentOutputColor.rgb, cameraTransformPosition.xyz, cameraTransformDirection.xyz, surfaceTransformPosition.xyz, surfaceTransformDirection.xyz, pointlight01, raymarchSurface.surfaceMaterial);
         
