@@ -1,0 +1,4 @@
+vec3 cameraSettingsOrbitalPoint;
+cameraSettingsOrbitalPoint.x = cameraSettingsOrbitalDistance * cos(cameraSettingsOrbitalElevation) * cos(iTime + cameraSettingsOrbitalAzimuth);
+cameraSettingsOrbitalPoint.y = cameraSettingsOrbitalDistance * sin(cameraSettingsOrbitalElevation);
+cameraSettingsOrbitalPoint.z = cameraSettingsOrbitalDistance * cos(cameraSettingsOrbitalElevation) * sin(iTime + cameraSettingsOrbitalAzimuth);
