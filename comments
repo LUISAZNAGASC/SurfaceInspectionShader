@@ -14,3 +14,20 @@ cameraSettingsMinimumFieldOfView
 cameraSettingsMaximumFieldOfView
 cameraSettingsFieldOfView
 cameraSettingsFocalLength
+
+
+
+
+
+
+float sdfRoundedCube(vec3 p, vec3 center, vec3 halfExtent, float radius) {
+    // Desplazamos el punto al espacio local del cubo
+    vec3 d = abs(p - center) - halfExtent;
+
+    // Calculamos la distancia a las esquinas redondeadas
+    float cornerDistance = length(max(d, 0.0)) - radius;
+
+    // Combinamos la distancia de las caras con la distancia a las esquinas
+    return max(max(d.x, max(d.y, d.z)), cornerDistance);
+}
+
