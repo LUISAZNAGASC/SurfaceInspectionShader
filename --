@@ -301,9 +301,9 @@ void setVignetteImageProcessing(inout vec3 fragmentOutputColor, const in vec2 fr
 
 void setGammaCorrectionImageProcessing(inout vec3 fragmentOutputColor, const in float gammaCorrectionExponent)
 {
-    vec3 GammaCorrectionColor = vec3(gammaCorrectionExponent, gammaCorrectionExponent, gammaCorrectionExponent).rgb;
+    vec3 gammaCorrectionColor = vec3(gammaCorrectionExponent, gammaCorrectionExponent, gammaCorrectionExponent).rgb;
    
-    fragmentOutputColor.rgb = pow(fragmentOutputColor.rgb, GammaCorrectionColor.rgb).rgb;
+    fragmentOutputColor.rgb = pow(fragmentOutputColor.rgb, gammaCorrectionColor.rgb).rgb;
 }
 
 void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
