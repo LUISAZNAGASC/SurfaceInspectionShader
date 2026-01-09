@@ -312,16 +312,12 @@ void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
    
     vec3 cameraTransformPosition = vec3(0.0f, 0.0f, 0.0f).xyz;
     {
-        float cameraSettingsOrbitalDistance = 50.0f;
-        
-        float cameraSettingsOrbitalHorizontal = radians(45.0f);
-        
-        float cameraSettingsOrbitalVertical = radians(45.0f);
+        vec3 cameraSettingsOrbitalAxis = vec3(radians(45.0f), radians(45.0f), 50.0f).xyz;
         
         vec3 cameraSettingsOrbitalPoint = vec3(0.0f, 0.0f, 0.0f).xyz;
-        cameraSettingsOrbitalPoint.x = cameraSettingsOrbitalDistance * cos(cameraSettingsOrbitalVertical) * cos(cameraSettingsOrbitalHorizontal + iTime);
-        cameraSettingsOrbitalPoint.y = cameraSettingsOrbitalDistance * sin(cameraSettingsOrbitalVertical);
-        cameraSettingsOrbitalPoint.z = cameraSettingsOrbitalDistance * cos(cameraSettingsOrbitalVertical) * sin(cameraSettingsOrbitalHorizontal + iTime);
+        cameraSettingsOrbitalPoint.x = cameraSettingsOrbitalAxis.z * cos(cameraSettingsOrbitalAxis.y) * cos(cameraSettingsOrbitalAxis.x + iTime);
+        cameraSettingsOrbitalPoint.y = cameraSettingsOrbitalAxis.z * sin(cameraSettingsOrbitalAxis.y);
+        cameraSettingsOrbitalPoint.z = cameraSettingsOrbitalAxis.z * cos(cameraSettingsOrbitalAxis.y) * sin(cameraSettingsOrbitalAxis.x + iTime);
         
         cameraTransformPosition.xyz = CameraSettingsFocusPoint.xyz + cameraSettingsOrbitalPoint.xyz;
     }
