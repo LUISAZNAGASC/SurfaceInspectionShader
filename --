@@ -354,4 +354,6 @@ void mainImage(out vec4 fragmentOutputColor, in vec2 fragmentInputCoordinates)
     setVignetteImageProcessing(fragmentOutputColor.rgb, fragmentInputCoordinates.xy, vec3(1.0f / 100.0f, 1.0f / 100.0f, 1.0f / 100.0f).rgb, 0.5f, 0.5f, 0.5f);
    
     setGammaCorrectionImageProcessing(fragmentOutputColor.rgb, 1.0f / 2.2f);
+    
+    fragmentOutputColor.rgba = vec4(fragmentOutputColor.r, fragmentOutputColor.g, fragmentOutputColor.b, 1.0f);
 }
