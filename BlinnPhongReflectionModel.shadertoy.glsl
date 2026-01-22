@@ -302,7 +302,7 @@ void setGammaCorrectionImageProcessing(inout vec3 fragmentOutputColor)
     
     vec3 gammaCorrectionLowerBranch = vec3(12.92f, 12.92f, 12.92f).rgb * fragmentOutputColor.rgb;
     
-    vec3 gammaCorrectionUpperBranch = vec3(1.055f, 1.055f, 1.055f).rgb * pow(fragmentOutputColor.rgb, vec3(1.0f / 2.4f, 1.0f / 2.4f, 1.0f / 2.4f).rgb) - vec3(0.055f, 0.055f, 0.055f).rgb;
+    vec3 gammaCorrectionUpperBranch = vec3(1.055f, 1.055f, 1.055f).rgb * pow(fragmentOutputColor.rgb, vec3(1.0f / 2.4f, 1.0f / 2.4f, 1.0f / 2.4f).rgb).rgb - vec3(0.055f, 0.055f, 0.055f).rgb;
     
     vec3 gammaCorrectionBranchSelector = step(vec3(0.0031308f, 0.0031308f, 0.0031308f).rgb, fragmentOutputColor.rgb).rgb;
     
