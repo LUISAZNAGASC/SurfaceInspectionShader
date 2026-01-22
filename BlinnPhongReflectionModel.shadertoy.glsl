@@ -298,6 +298,8 @@ void setVignetteImageProcessing(inout vec3 fragmentOutputColor, const in vec2 fr
 
 void setGammaCorrectionImageProcessing(inout vec3 fragmentOutputColor)
 {
+    fragmentOutputColor.rgb = clamp(fragmentOutputColor.rgb, vec3(0.0f, 0.0f, 0.0f).rgb, vec3(1.0f, 1.0f, 1.0f).rgb).rgb;
+    
     vec3 gammaCorrectionLowerBranch = vec3(12.92f, 12.92f, 12.92f).rgb * fragmentOutputColor.rgb;
     
     vec3 gammaCorrectionUpperBranch = vec3(1.055f, 1.055f, 1.055f).rgb * pow(fragmentOutputColor.rgb, vec3(1.0f / 2.4f, 1.0f / 2.4f, 1.0f / 2.4f).rgb) - vec3(0.055f, 0.055f, 0.055f).rgb;
