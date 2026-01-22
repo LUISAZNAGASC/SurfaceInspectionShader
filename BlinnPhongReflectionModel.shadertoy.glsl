@@ -64,9 +64,9 @@ surface getMixedSurface(const in surface firstSurface, const in surface secondSu
     mixedSurfaceMaterial.materialSpecularFactor = mix(firstSurface.surfaceMaterial.materialSpecularFactor, secondSurface.surfaceMaterial.materialSpecularFactor, surfaceMaterialFactor);
     mixedSurfaceMaterial.materialSpecularShininess = mix(firstSurface.surfaceMaterial.materialSpecularShininess, secondSurface.surfaceMaterial.materialSpecularShininess, surfaceMaterialFactor);
     
-    surface mixedSurface;
+    surface mixedSurface = surface(mixedSurfaceDistance, mixedSurfaceMaterial);
     
-    return mixedSurface = surface(mixedSurfaceDistance, mixedSurfaceMaterial);
+    return mixedSurface;
 }
 
 surface getCubeSurface(const in vec3 sceneTransformPosition, const in vec3 cubeTransformPosition, const in vec3 cubeTransformRotation, const in vec3 cubeTransformScale, const in float cubeSurfaceRoundness, const in material cubeSurfaceMaterial)
