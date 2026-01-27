@@ -424,7 +424,7 @@ void setFragmentForegroundColor(inout vec3 fragmentOutputColor, const in vec3 ca
     vec3(1.0f), 1.0f,
     vec3(1.0f), 1.0f,
     vec3(1.0f), 1.0f,
-    250.0f
+    200.0f
 );
 
 setFragmentForegroundColor(
@@ -435,7 +435,30 @@ setFragmentForegroundColor(
     surfaceTransformDirection,
     spotlight01,
     raymarchSurface.surfaceMaterial);
+
+
+
+spotlight spotlight02 = spotlight(
+    vec3(0.0f, 100.0f, 50.0f),          // posición
+    normalize(vec3(0.0) - vec3(0.0f, 100., 50.0f)), // dirección
+    cos(radians(5.0f)),             // inner
+    cos(radians(10.0f)),             // outer
+    vec3(1.0f), 1.0f,
+    vec3(1.0f), 1.0f,
+    vec3(1.0f), 1.0f,
+    200.0f
+);
+
+setFragmentForegroundColor(
+    fragmentOutputColor.rgb,
+    cameraTransformPosition,
+    cameraTransformDirection,
+    surfaceTransformPosition,
+    surfaceTransformDirection,
+    spotlight02,
+    raymarchSurface.surfaceMaterial);
 }
+
 
 void setFragmentBackgroundColor(inout vec3 fragmentOutputColor, const in vec2 fragmentInputCoordinates, const in vec3 fragmentTileEvenColor, const in vec3 fragmentTileOddColor, const in float fragmentTileDimension, const in vec3 fragmentLineColor, const in float fragmentLineDimension)
 {
